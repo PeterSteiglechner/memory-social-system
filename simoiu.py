@@ -125,6 +125,7 @@ plt.legend(title="", frameon=False, ncol=1)
 plt.ylabel(r"relative error $\xi$")
 plt.title("Collective performance\n'Estimate movie rating on Rotten Tomatoes'")
 fig.tight_layout()
+plt.savefig("figs/simoiu_movieratings_performance.png", dpi=600)
 # %%
 selected_tasks = [10740+l for l in range(10)]
 results = []
