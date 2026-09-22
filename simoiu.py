@@ -118,8 +118,8 @@ xis_df = pd.DataFrame(xis, columns=["condition", "movie", "xi_mean", "xi_median"
 # %%
 fig, ax = plt.subplots(1,1,figsize=(8/2.54, 8/2.54))
 xis_df_melted = xis_df.melt(id_vars=["condition", "movie"], value_name="xi", var_name="metric").replace({"xi_mean":"mean", "xi_median":"median"})
-sns.barplot(xis_df_melted, hue="condition", x="metric", y="xi", saturation=0.2)
-sns.stripplot(xis_df_melted, hue="condition", x="metric", y="xi", dodge=True, legend=False, size=2)
+sns.barplot(xis_df_melted, hue="condition", x="metric", y="xi", fill=False, gap=0.15, alpha=0.5, err_kws={"alpha":0.5})
+sns.stripplot(xis_df_melted, hue="condition", x="metric", y="xi", dodge=True, legend=False, size=2,)
 plt.xlabel(None)
 plt.legend(title="", frameon=False, ncol=1)
 plt.ylabel(r"relative error $\xi$")
