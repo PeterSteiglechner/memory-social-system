@@ -19,6 +19,9 @@ import pandas  as  pd
 
 # logist = lambda x: (1/(1+np.exp(-x)))
 
+from scipy.special import expit as logist
+
+
 def p(signal, truth, G, D, E): 
     return logist(G) + (1-logist(G)) * (erf((signal - truth)/(D*logist(E)*(2**0.5))))**2 
 
@@ -109,7 +112,6 @@ def slowCopyIntegrate(n, N_evaluate, k, c, alpha, sig, n_seeds, T=0.2):
 
 def getK(df, N_evaluate, params, paramColumn):
     minKs = []
-
     for gfunc in ["mean", "median"]:
         for N in N_evaluate:
             sub = df.query(f"gfunc=='{gfunc}' and N=={N}")[["k", paramColumn, "seed", "relative_error_ind", "relative_error_final"]]
