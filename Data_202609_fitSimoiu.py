@@ -348,3 +348,15 @@ print(df3.loc[df3.cond.isin(["Most recent", "Consensus"])].groupby(["domain_name
 # %%
 df3.to_csv("processed_data/simoiu_fitsCI.csv")
 # %%
+
+
+fitsKontalexi= (
+    pd.read_table('kontalexiFits.md', sep="|", header=0, index_col=1, skipinitialspace=True)
+    .dropna(axis=1, how='all')
+    .iloc[1:]
+    )
+fitsKontalexi.index = fitsKontalexi.index.str.strip()
+myfit= df3.loc[df3.cond=="Consensus"].groupby("domain_name")[["c"]].mean().round(2)
+fitsKontalexi = pd.DataFrame(fitsKontalexi).join(myfit) #, how="left")
+fitsKontalexi.corr()
+# %%

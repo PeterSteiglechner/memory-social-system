@@ -123,8 +123,8 @@ if run=="_examples":
     paramsCI = [(c,a) for c in cs for a in alphas]
 else:
     memory_sizes = [1,3,9,19,99]
-    cs = np.linspace(0,1,21)[1:-1]
-    alphas = np.linspace(0,1,21)[1:-1]
+    cs = np.linspace(0,1,21)#[1:-1]
+    alphas = np.linspace(0,1,21)#[1:-1]
     paramsCI = [(c,a) for c in cs for a in alphas]
 
 beliefs = rng.normal(T, sig, size=(n_seeds, n))   # generated once, shared by all configs

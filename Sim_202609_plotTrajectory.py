@@ -148,7 +148,7 @@ plot_ThetaOverK(errorsCIexamples.loc[errorsCIexamples.k.isin(ksPlot)], 100, "ci"
 
 
 #%%
-def plot_phasespace(df, ax, ks, cbar=False, vmax=None, annot=False):
+def plot_phasespace(df, ax, ks, cbar=False, vmax=None, annot=False, plotProb=False):
     cmap = mcolors.ListedColormap(["darkred", "tomato", "magenta", "cornflowerblue", "darkblue"])
     cmap = mcolors.ListedColormap(["#feebe2","#fbb4b9","#f768a1","#c51b8a","#7a0177"])
     norm = mcolors.BoundaryNorm([k-1 for k in ks]+[ks[-1]+1], cmap.N)
@@ -157,10 +157,17 @@ def plot_phasespace(df, ax, ks, cbar=False, vmax=None, annot=False):
     x, y = df.columns.values, df.index.values   # 0..1, equally spaced
     data = np.ma.masked_invalid(df.values)
 
-    if cbar:
+    if plotProb: 
+        mesh = ax.pcolormesh(x, y, data, shading="nearest", cmap="Purples", vmin=0, vmax=vmax)
+        cb = ax.figure.colorbar(mesh, ax=ax)
+        cb.set_label(rf"Simulated prob. that $\theta(k={ks[0]}) \leq \theta(k={ks[1]})$", )
+        cb.set_ticks([0, 0.5, 1])
+
+    elif cbar:
         mesh = ax.pcolormesh(x, y, data, shading="nearest", cmap="viridis", vmin=0, vmax=vmax)
         # mesh = ax.contour(x, y, data, cmap="viridis", vmin=0, vmax=vmax)
-        ax.figure.colorbar(mesh, ax=ax)
+        cb = ax.figure.colorbar(mesh, ax=ax)
+        # cb.set_label("")
     else:
         mesh = ax.pcolormesh(x, y, data, shading="nearest", cmap=cmap, norm=norm)
         # mesh = ax.contour(x, y, data, cmap=cmap, norm=norm, levels=[ks[0]-1]+[k+1 for k in ks])
@@ -177,20 +184,27 @@ def plot_phasespace(df, ax, ks, cbar=False, vmax=None, annot=False):
 
 def plotPhaseMosaic(df, ks, model, err, scatter=True, scatter_df= None):
     params = ["logGmean", "logEmean"] if model == "mh" else ["c", "alpha"]
+    
+    if len(ks)==2:
+        probname = fr"$k{ks[0]}\leqk{ks[1]}$"
+        prob = df.pivot_table(index=["c", "alpha", "seed"], columns="k", values=err, aggfunc="first")
+        prob = (prob[ks[0]]<=prob[ks[1]]).rename(probname).reset_index().groupby(["c", "alpha"])[probname].mean().reset_index()
+
     minK_ind = (df.pivot_table(index=params, columns="k", values=err)
                 .T.idxmin().rename("bestK").reset_index())
     minK_ind["bestK"] = pd.Categorical(minK_ind["bestK"], categories=ks)
     for k in ks:
         minK_ind = minK_ind.merge(
             df.loc[df.k == k].groupby(params)[err].mean()
-            .rename(f"k{k}_mean_" + err).reset_index())
+            .rename(f"k{k}_mean_" + err).reset_index())    
+                
 
-    fig, axs = plt.subplot_mosaic([["a", "a", "leg","leg2"], ["b", "b", "c", "c"]],
-                                  figsize=(16 / 2.54, 14 / 2.54), height_ratios=[1,0.6])
+    fig, axs = plt.subplot_mosaic([["a", "a", "a", "leg","leg2"], ["b", "b", "c", "c", "c"]],
+                                  figsize=(18 / 2.54, 14 / 2.54), height_ratios=[1,0.6], width_ratios=[2.5,2,1,1,2])
     axs["leg2"].axis("off")
-    plot_phasespace(minK_ind.pivot_table(index=params[1], columns=params[0],
-                                         values="bestK", aggfunc="first"),
-                    axs["a"], ks=ks, annot=True)
+    plot_phasespace((minK_ind if len(ks)>2 else prob).pivot_table(index=params[1], columns=params[0],
+                                         values=("bestK" if len(ks)>2 else probname), aggfunc="first"),
+                    axs["a"], ks=ks, annot=(len(ks)>2), plotProb=len(ks)==2)
     for l, k in zip(["b", "c"], [3, 99]):
         axs[l].set_title(f"Mean Individual Error, k={k}")
         plot_phasespace(minK_ind.pivot_table(index=params[1], columns=params[0],
@@ -221,17 +235,20 @@ def plotPhaseMosaic(df, ks, model, err, scatter=True, scatter_df= None):
         # a.invert_yaxis()                               # ci: origin top, as with sns.heatmap
 
     fig.suptitle((fr"Mayer&Heck ($R={df.R.unique()[0]}$)" if model=="mh" else "Copy & Integrate") + " model Phase Diagram")
-    fig.tight_layout()
+    fig.tight_layout(w_pad=0)
     return fig, axs
 
 #%%
 ks = errorsCI.k.unique().tolist()
-ks = [1,3,9,19,99]
+ks = [3,99] #[1,3,9,19,99]
 N_evaluate = 100
 fig, axs = plotPhaseMosaic(errorsCI.loc[(errorsCI.N==N_evaluate) & (errorsCI.k.isin(ks))], ks, "ci", "relative_error_ind", scatter=True, scatter_df=errorsCIexamples)
 
 for ax in axs:
-    axs[ax].set_ylabel(r"$\alpha$ = social signal influence")
+    if not ax=="c": 
+        axs[ax].set_ylabel(r"$\alpha$ = social signal influence")
+    else:
+        axs[ax].set_ylabel("")
     axs[ax].set_xlabel(r"$c$ = copy rate")
 
 simoiuFit = pd.read_csv("processed_data/simoiu_fitsCI.csv")
@@ -240,10 +257,11 @@ print(simoiuFit.loc[simoiuFit.cond.isin(["Most recent", "Consensus"])].groupby([
 fits = simoiuFit.loc[simoiuFit.cond.isin(["Most recent", "Consensus"])].groupby(["domain_name", "task_id", "cond"], as_index=False).first()
 fits["'Most recent' outperforms 'Consensus'"] = (fits["bestCondition"] == "Most recent").astype(int)
 share = (
-    fits.groupby("domain_name")["'Most recent' outperforms 'Consensus'"].mean()
+    fits.groupby(["domain_name"])["'Most recent' outperforms 'Consensus'"].mean()
     .rename("fraction tasks in which 'Most recent' outperforms 'Consensus'")      
 )
-params = simoiuFit.groupby("domain_name")[["c", "alpha"]].mean()
+condition = "Most recent"
+params = simoiuFit.loc[simoiuFit.cond==condition].groupby("domain_name")[["c", "alpha"]].mean()
 params["share"] = share
 
 norm = mcolors.Normalize(vmin=0, vmax=1)
@@ -256,10 +274,11 @@ for nl, (name, row) in enumerate(params.iterrows()):
 for cond, marker in zip(["Most recent", "Consensus"], ["X", "D"]):
     fitsCond = fits.loc[fits.cond==cond]
     scTasks = axs["a"].scatter(fitsCond["c"], fitsCond["alpha"], c=fitsCond["'Most recent' outperforms 'Consensus'"], s=7, linewidth=0.2, edgecolors="white", zorder=11,cmap=cmapDots, norm=None, marker=marker, alpha=0.3)
+axs["a"].text(0.99 if len(ks)==2 else 1.5,0.99,rf"Dots show avg $c$ and $\alpha$"+f"\nfor each domain"+f"\nin condition '{condition}'", va="top", ha="left" if len(ks)>2 else 'right', transform=axs["a"].transAxes, color="k" if len(ks)>2 else "white")
 cb = plt.colorbar(sc)   # or fig.colorbar(...)
-cb.set_label(r"Share of tasks in Simouiu et al where"+"\n"+r"$\theta_{ind}^{\rm Most\ recent} < \theta_{ind}^{\rm Consensus}$")
+cb.set_label(r"Share of tasks with"+r"$\theta_{ind}^{\rm Most\ recent} < \theta_{ind}^{\rm Consensus}$", )
 cb.set_ticks([0, 0.5, 1])
-plt.savefig("figs/phase_CI"+("3v100" if len(ksPlot)==2 else '')+".png", dpi=600)
+plt.savefig("figs/phase_CI"+("3v100" if len(ksPlot)==2 else '')+f"_SimoiuDomains{condition}.png", dpi=600)
 
 # %%
 ks = errorsMH.k.unique().tolist()
@@ -274,4 +293,31 @@ for ax in axs:
 # plt.savefig("figs/phase_MH"+("3v100" if len(ks)==2 else '')+".png", dpi=600)
 
 
+# %%
+
+
+tab = errorsCI.loc[(errorsCI.N==N_evaluate) & (errorsCI.k.isin([3,99]))].pivot_table(index=["c", "alpha", "seed"], columns="k", values="relative_error_ind", aggfunc="first")
+tab = (tab[3]<tab[99]).rename("k3<k99").reset_index().groupby(["c", "alpha"])["k3<k99"].mean().reset_index()
+
+ax = plt.axes()
+sns.heatmap(tab.pivot_table(columns="c", index="alpha", values="k3<k99", aggfunc="first"), ax=ax, cmap="Purples", cbar_kws={"label":"Probability that $\theta(k=3)<\theta(k=99)$ over 1000 seeds"})
+ax.invert_yaxis()
+
+
+# %%
+
+# CORRELATION
+err = "relative_error_ind"
+probname = "3<=99"
+df = errorsCI.copy()
+prob = df.pivot_table(index=["c", "alpha", "seed"], columns="k", values=err, aggfunc="first")
+prob = (prob[ks[0]]<=prob[ks[1]]).rename(probname).reset_index().groupby(["c", "alpha"])[probname].mean().reset_index()
+# %%
+res = []
+for d in params.index:
+    closest = {col: prob[col].iloc[(prob[col] - params.loc[d, col]).abs().argmin()]
+           for col in ["c", "alpha"]}
+    res.append([d, params.loc[d,"c"], params.loc[d,"alpha"], params.loc[d,"share"], closest["c"], closest["alpha"], prob.loc[(prob.c==closest["c"]) & (prob.alpha==closest["alpha"]), probname].values[0]])
+res_df = pd.DataFrame(res, columns=["domain", "c fit "+condition, "alpha fit "+condition, "k=3 win share", "c", "alpha", "sim k=3 win prob" ])
+res_df[["k=3 win share", "sim k=3 win prob"]].corr()
 # %%
