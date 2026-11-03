@@ -34,12 +34,13 @@ def param_labels(df, model):
 THETA = {  # key: (symbol, numerator)
     # "final":   (r"\theta_{\mathrm{final}}", r"|y_N-T|"),
     "ind":     (r"\theta_{\mathrm{ind}}",   r"\sum_n |y_n-T|"),
+    "indMedian":     (r"\theta_{\mathrm{indMed}}",   r"\mathrm{median}(|y_n-T|)"),
     # "wocMean": (r"\theta_{\mathrm{WoC}}",   r"|\mathrm{mean}(y_n)-T|"),
     "crowd": (r"\theta_{\mathrm{crowd}}",   r"|\hat{y}_N-T|"),
 }
 
 
-def plot_theta_over_k(df, n_plot, model, cmap="tab20", baseline_col="relative_error_wocMean"):
+def plot_theta_over_k(df, n_plot, model, cmap="tab20", baseline_col="relative_error_ind"):
     df = df.copy()
     df["k"] = df["k"].astype(float).replace(0, 0.5)       # k=0 drawn at 0.5 on the log axis
     df["parameters"] = param_labels(df, model)
@@ -174,7 +175,7 @@ def mark_examples(ax, ex, model, cmap, label=False):
 
 
 def phase_figure(df, ks, model, *, N=100, vmax=1,
-                 examples=None, example_cmap="tab10", xlabel="", ylabel=""):
+                 examples=None, example_cmap="tab10", xlabel="", ylabel="", errorTypes = ["ind", "crowd"]):
     ks = sorted(ks)
 
     params = PHASE_PARAMS[model]
@@ -189,7 +190,7 @@ def phase_figure(df, ks, model, *, N=100, vmax=1,
     for i,j in gsinds[1:]:
         axs.append(fig.add_subplot(gs[i, j], sharex=axs[0], sharey=axs[0]))
     # if model=="ci":
-    for n, err in enumerate(["ind", "crowd"]):
+    for n, err in enumerate(errorTypes):
         ax = fig.add_subplot(gs[0,n])
         ax.axis("off")
         inderror = df.loc[df.k==0, f"relative_error_{err}"].mean()
@@ -198,7 +199,7 @@ def phase_figure(df, ks, model, *, N=100, vmax=1,
     df = df[(df.N == N) & (df.k.isin([0]+ks))]
 
     # --- panels b, c (shared colorbar)
-    for ax, k, err in zip(axs, [k_lo, k_lo, k_hi,k_hi], ["ind", "crowd", "ind", "crowd", "ind", "crowd"]):
+    for ax, k, err in zip(axs, [k_lo, k_lo, k_hi,k_hi], errorTypes*3):
         print(k, err, ax) 
         mesh = draw_grid(ax, mean_error_grid(df, params, f"relative_error_{err}", k), cmap="viridis", vmin=0, vmax=vmax)
         ax.set_title(fr"$k={k}$, $\theta_{r'{'}{err}{r'}'}$")
@@ -234,7 +235,7 @@ tag = "3v127" if len(KS) == 2 else ""
 
 # --- CI
 fig, axs = phase_figure(errorsCI, KS, "ci", N=N_EVAL, examples=errorsCIex, example_cmap=cmap,
-                        xlabel=r"$c$ = copy rate", ylabel=r"$\alpha$ = social signal influence")
+                        xlabel=r"$c$ = copy rate", ylabel=r"$\alpha$ = social signal influence", errorTypes=["indMedian", "crowd"])
 print(f"figs/ErrorPhase_CI{tag}.png")
 fig.savefig(f"figs/ErrorPhase_CI{tag}.png", dpi=600)
 
@@ -242,7 +243,7 @@ fig.savefig(f"figs/ErrorPhase_CI{tag}.png", dpi=600)
 D_MODE = R_MODE = "fixed"
 fig, axs = phase_figure(errorsMH, KS, "mh", N=N_EVAL, examples=errorsMHex, example_cmap=cmap,
                         xlabel=r"$G$ = individuality = 1 - base copy rate",
-                        ylabel=r"$E$ = lack of expertise")
+                        ylabel=r"$E$ = lack of expertise", errorTypes=["indMedian", "crowd"])
 print(f"figs/ErrorPhase_MH{tag}_Dfit{D_MODE}_Rfit{R_MODE}.png")
 fig.savefig(f"figs/ErrorPhase_MH{tag}_Dfit{D_MODE}_Rfit{R_MODE}.png", dpi=600)
 

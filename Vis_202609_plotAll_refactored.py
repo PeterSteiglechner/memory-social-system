@@ -190,7 +190,7 @@ def phase_figure(df, ks, model, *, N=100, err="relative_error_ind", vmax=1,
     errTy = err.split('_')[-1]
     if len(ks) == 2:
         # lab.append(rf"background: sim. prob. $\theta_{r'{\rm ind}'}(k={k_lo})\leq\theta_{r'{\rm ind}'}(k={k_hi})$")
-        lab.append(rf"Pixel Colour: Share of simulations with"+"\n"+rf"$\theta_{r'{\rm '}{errTy}{r'}'}(k={k_lo}) < \theta_{r'{\rm '}{errTy}{r'}'}(k={k_hi})$")
+        lab.append(rf"Pixel Colour: Share of simulations with"+"\n"+rf"$\theta_{r'{\rm '}{errTy}{r'}'}(k={k_lo}) < \theta_{r'{\rm '}{errTy}{r'}'}(k={k_hi})$" + "\n")
     if fits is not None:
         lab.append(rf"Dot Colour: # of tasks with"+"\n"+rf"$\theta_{r'{\rm '}{errTy}{r'}'}^{r'{\rm Most\ recent}'} < \theta_{r'{\rm '}{errTy}{r'}'}^{r'{\rm Consensus}'}$")
     if lab:
@@ -217,7 +217,7 @@ def phase_figure(df, ks, model, *, N=100, err="relative_error_ind", vmax=1,
     #ax_c.tick_params(labelleft=False)
 
     ax_a.set_title((rf"Mayer&Heck ($R={df.R.unique()[0]}$)" if model == "mh" else "Copy&Integrate")
-                 + f" model — {'individual' if errTy=='ind' else errTy} error")
+                 + f" — {'individual' if 'ind' in errTy else errTy}{' median' if 'Median' in errTy else ''} error")
     return fig, dict(a=ax_a)#, b=ax_b, c=ax_c)
 
 
@@ -250,7 +250,7 @@ fits_ci = domain_fits("processed_data/simoiu_fitsCI.csv", ["c", "alpha"], PHASE_
 fig, axs = phase_figure(errorsCI, KS, "ci", N=N_EVAL, examples=errorsCIex, example_cmap="Set1",
                         fits=fits_ci, condition=COND, err=err,
                         xlabel=r"$c$ = copy rate", ylabel=r"$\alpha$ = social signal influence")
-fig.savefig(f"figs/phase_{errTy}Eror_CI{tag}_SimoiuDomains{COND}.png", dpi=600)
+fig.savefig(f"figs/phase_{errTy}Error_CI{tag}_SimoiuDomains{COND.replace(" ", "")}.png", dpi=600)
 
 # --- MH
 D_MODE = R_MODE = "fixed"
@@ -260,11 +260,11 @@ fig, axs = phase_figure(errorsMH, KS, "mh", N=N_EVAL, examples=errorsMHex, examp
                          err=err,
                         xlabel=r"$G$ = individuality = 1 - base copy rate",
                         ylabel=r"$E$ = lack of expertise")
-fig.savefig(f"figs/phase_{errTy}Error_MH{tag}_SimoiuDomains{COND}_Dfit{D_MODE}_Rfit{R_MODE}.png", dpi=600)
+fig.savefig(f"figs/phase_{errTy}Error_MH{tag}_SimoiuDomains{COND.replace(" ", "")}_Dfit{D_MODE}_Rfit{R_MODE}.png", dpi=600)
 
 #%%
 
-from Sim_202609_models_main import n_seeds,T, gfuncs, seeds, anchoring, R, sigG, sigE, SIG_CI, simulateMH, simMH, errors_from, simulate, metrics, simCI
+from Sim_202609_models_main import n_seeds,T, gfuncs, seeds, anchoring, R, sigG, sigE, SIG_CI, simulateMH, simMH, errors_from_estimatesMH, errors_from_estimates, simulate, simCI
 from scipy.special import logit
 from scipy.special import expit as logist
 
@@ -320,8 +320,8 @@ for ax, (model, df, fits) in zip(axs, [("ci", errorsCI, fits_ci), ("mh", errorsM
            title=f"Mayer&Heck (D {D_MODE}, R={R if R_MODE=='fixed' else 'NA'})" if model == "mh" else "Copy&Integrate")
     ax.set_aspect("equal")
 axs[0].set_ylabel(f"simulated win probability \nof $k={KS[0]}$ vs. $k={KS[-1]}$", fontsize=9,)
-fig.supxlabel(f"win share of 'Most recent' ($k={KS[0]}$) vs. 'Consensus' ($k={KS[1]}$) chains\nin Simoiu et al. (2019) per domain", fontsize=9)
-fig.suptitle(f"{'individual' if 'ind' in err else ('crowd' if 'crowd' in err else err)} error")
+fig.supxlabel(f"win share of chains in 'Most recent' ($k={KS[0]}$) vs. 'Consensus' ($k={KS[1]}$) condition\nin Simoiu et al. (2019) per domain", fontsize=9)
+fig.suptitle(f"Model vs. Data: performance w.r.t. {'individual' if 'ind' in err else ('crowd' if 'crowd' in err else err)}{' median' if 'Median' in err else ''} error")
 fig.tight_layout()
 plt.savefig(f"figs/corrSimoiuModels_{errTy}.png", dpi=600)
 # %%

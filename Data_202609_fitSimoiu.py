@@ -108,35 +108,52 @@ def get_chain(task, cond):
 
 df["dev"] = (df["answer"] - df["correct_answer"]) / df["std_Control"]
 
-def ind_error(x):
-    return meanTrimmed(x.dropna().abs(), trim=0)  # trim=0 just returns the mean
-def agg_error(x, func="median"):
-    if func=="mean":
-        return np.abs(meanTrimmed(x.dropna(), trim=0))
-    else: 
-        return np.abs(np.median(x.dropna()))
-def final_error(x):
-    return np.abs(x.dropna().iloc[-1])
 
-ind_errors = df.groupby(["task_id", "cond"])["dev"].agg(ind_error).rename("ind_error")
-agg_errors = df.groupby(["task_id", "cond"])["dev"].agg(agg_error).rename("agg_error")
-final_errors = df.groupby(["task_id", "cond"])["dev"].agg(final_error).rename("final_error")
+indErr = df.groupby(["domain_name", "task_id", "cond"])["dev_rel"].mean().rename("ind_error").reset_index()
+finErr = df.groupby(["domain_name", "task_id", "cond"])["dev_rel"].last().rename("final_error").reset_index()
+indMedianErr = df.groupby(["domain_name", "task_id", "cond"])["dev_rel"].median().rename("indMedian_error").reset_index()
+wocErr = df.groupby(["domain_name", "task_id", "cond"])["diff_rel"].median().abs().rename("agg_error").reset_index()
 
-errors = pd.concat([ind_errors, agg_errors, final_errors], axis=1).reset_index().dropna()
+errors = indErr.merge(finErr, how="left", on=["domain_name", "task_id", "cond"])
+errors = errors.merge(indMedianErr, how="left", on=["domain_name", "task_id", "cond"])
+errors = errors.merge(wocErr, how="left", on=["domain_name", "task_id", "cond"])
+errors["crowd_error"] = errors["final_error"]
+errors.loc[errors.cond=="Control", "crowd_error"] = errors.loc[errors.cond=="Control", 'agg_error']
 
-err = "compareError"
-errors["compareError"]  = np.nan
-errors.loc[errors.cond=="Control", err] = errors.loc[errors.cond=="Control", "agg_error"] 
-errors.loc[errors.cond!="Control", err] = errors.loc[errors.cond!="Control", "ind_error"] 
+
+
+# def ind_error(x):
+#     return meanTrimmed(x.dropna().abs(), trim=0)  # trim=0 just returns the mean
+# def agg_error(x, func="median"):
+#     if func=="mean":
+#         return np.abs(meanTrimmed(x.dropna(), trim=0))
+#     else: 
+#         return np.abs(np.median(x.dropna()))
+# def final_error(x):
+#     return np.abs(x.dropna().iloc[-1])
+# def indMedian_error(x):
+#     return np.median(x.dropna().abs())
+
+# ind_errors = df.groupby(["task_id", "cond"])["dev"].agg(ind_error).rename("ind_error")
+# indMedian_errors = df.groupby(["task_id", "cond"])["dev"].agg(indMedian_error).rename("indMedian_error")
+# agg_errors = df.groupby(["task_id", "cond"])["dev"].agg(agg_error).rename("agg_error")
+# final_errors = df.groupby(["task_id", "cond"])["dev"].agg(final_error).rename("final_error")
+
+# errors = pd.concat([ind_errors, indMedian_errors, agg_errors, final_errors], axis=1).reset_index().dropna()
+
+err = "crowd_error"
+# errors["crowd_error"]  = np.nan
+# errors.loc[errors.cond=="Control", err] = errors.loc[errors.cond=="Control", "agg_error"] 
+# errors.loc[errors.cond!="Control", err] = errors.loc[errors.cond!="Control", "ind_error"] 
 # bestCtrl = errors.pivot_table(index="task_id", columns="cond", values=err)[["Consensus", "Most recent", "Control"]].idxmin(axis="columns").rename("bestConditionCtrl")
 # errorsCtrl = errors.join(bestCtrl, on=["task_id"])
 best = errors.pivot_table(index="task_id", columns="cond", values=err)[["Consensus", "Most recent"]].idxmin(axis="columns").rename("bestCondition")
 errors = errors.join(best, on=["task_id"])
 errors = errors.join(tasks.set_index("task_id")["domain_name"], on="task_id")
-best.value_counts()
+print(err, best.value_counts())
 
 
-metrics = ["final_error", "ind_error", "agg_error"]
+metrics = ["final_error", "ind_error", "agg_error", "crowd_error", "indMedian_error"]
 errs = errors.groupby(["domain_name", "task_id", "cond"])[metrics].mean().reset_index()
 sub = errs.loc[errs.cond.isin(["Consensus", "Most recent"])]
 
@@ -291,7 +308,7 @@ df2 = df.merge(fits_df, how="left", on=["task_id", "cond"])
 df3 = df2.merge(errors, how="left", on=["task_id", "cond", "domain_name"])
 # %%
 # df3.loc[df3.domain_name=="calories"].pivot_table(index="task_id", columns="cond", values="c", aggfunc="first").describe()
-print(df3.loc[df3.cond.isin(["Most recent", "Consensus"])].groupby(["domain_name", "cond"])[["c", "c_lo", "c_hi"] + ["alpha", "alpha_lo", "alpha_hi"]].agg("mean").round(2).reset_index().sort_values(["cond", "domain_name"]).to_markdown())
+print(df3.loc[df3.cond.isin(["Most recent", "Consensus"])].groupby(["domain_name", "cond"])[["c", "c_lo", "c_hi"] + ["alpha", "alpha_lo", "alpha_hi"]].agg("mean").round(2).reset_index().sort_values(["cond", "domain_name"]).to_latex(float_format="%.2f").replace("_", " "))
 # %%
 df3.to_csv("processed_data/simoiu_fitsCI.csv")
 # %%
@@ -491,7 +508,7 @@ df2MH = df.merge(mh_fits_df, how="left", on=["task_id", "cond"])
 df3MH = df2MH.merge(errors, how="left", on=["task_id", "cond", "domain_name"])
 # %%
 cols = np.concatenate([[k, k+"_lo", k+"_hi"] for k in ["G", "E", "D", "R"]])
-print(df3MH.loc[df3MH.cond.isin(["Most recent", "Consensus"])].groupby(["domain_name", "cond"])[cols].agg("mean").round(2).reset_index().sort_values(["cond", "domain_name"]).to_markdown())
+print(df3MH.loc[df3MH.cond.isin(["Most recent", "Consensus"])].groupby(["domain_name", "cond"])[cols].agg("mean").round(2).reset_index().sort_values(["cond", "domain_name"]).to_latex(float_format="%.2f").replace("_", " "))
 # %%
 df3MH.to_csv(f"processed_data/simoiu_fitsMH_D{D_MODE}_R{R_MODE}.csv")
 
