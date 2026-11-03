@@ -46,7 +46,7 @@ def simulateMH(k, Estar, Gstar, D, gfunc, gauss_noise, unif_noise):
         estimates[:, i] = np.where(copy, signal, new)
     return estimates
 
-def errors_from_estimatesMH(estimates, Estar, D):
+def errors_from_estimatesMH(estimates, Estar, D, N_evaluate):
     E = logist(Estar)
     wocMean_err, ind_err, ind_errMedian, fin_err = [], [], [], []
     for N in N_evaluate:
@@ -64,7 +64,7 @@ def errors_from_estimatesMH(estimates, Estar, D):
 #%%
 run = "_examples"
 if run=="_examples":
-    memory_sizes = [0] + list(range(1, min(n, 100), 2))+ [127,149,199,249,299] + list(np.arange(399,1000,100))
+    memory_sizes = [0] + list(range(1, min(n, 100), 2))+ [127]#+,149,199,249,299] + list(np.arange(399,1000,100))
     memory_sizes = [k for k in memory_sizes if k<=n]
     #MHparams = [(-1,3,0), (-1,3,-2), (-1,3,2), (0,3,0), (-1,1,0)] # (-4,3,-4), (4,3,-4), (-4,3,4), (4,3,4), 
     MHparams = [(-1,-1), (1,-1), (-1,1), (1,1)]
@@ -89,7 +89,7 @@ def simMH(n, n_seeds, N_evaluate, T, memory_sizes, paramsMH, D=3, verbose=True):
                     #wocMean_err, ind_err, fin_err = errors_from_estimates(estimates, E, D)
                 else:
                     estimates = simulateMH(k, Estar, Gstar, D, gfunc, gauss_noise, unif_noise)
-                wocMean_err, ind_err, ind_errMedian, fin_err = errors_from_estimatesMH(estimates, Estar, D)
+                wocMean_err, ind_err, ind_errMedian, fin_err = errors_from_estimatesMH(estimates, Estar, D, N_evaluate)
 
                 rows.append(pd.DataFrame({
                     "seed": np.repeat(seeds, len(N_evaluate)),
@@ -103,7 +103,7 @@ def simMH(n, n_seeds, N_evaluate, T, memory_sizes, paramsMH, D=3, verbose=True):
                     "relative_error_final": fin_err.ravel()}))
     errorsMH = pd.concat(rows, ignore_index=True)
     # errorsMH = errorsMH.rename(columns = {"relative_error_ind_expectedSigma":"relative_error_ind"})
-    errorsMH.loc[errorsMH["k"]>errorsMH["N"], [c for c in errorsMH.columns if "relative_error" in c]] = np.nan
+    # errorsMH.loc[errorsMH["k"]>errorsMH["N"], [col for col in errorsMH.columns if "relative_error" in col]] = np.nan
     return errorsMH
 
 #%%
@@ -125,7 +125,7 @@ SIG_CI = 1
 
 run = "_examples"
 if run=="_examples":
-    memory_sizes = [0] + list(range(1, min(n, 100), 2))+ [127,149,199,249,299] + list(np.arange(399,1000,100))
+    memory_sizes = [0] + list(range(1, min(n, 100), 2))+ [127]#+[149,199,249,299] + list(np.arange(399,1000,100))
     memory_sizes = [k for k in memory_sizes if k<=n]
     cs = [0.2,0.8]
     alphas = [0.2,0.7]
@@ -147,7 +147,7 @@ def simulate(k, c, alpha, gfunc, beliefs, uniformRand):
                            alpha * signal + (1 - alpha) * beliefs[:, i])
     return estimates
 
-def errors_from_estimates(g):
+def errors_from_estimates(g, N_evaluate):
     wocMean_err, ind_err, indMedian_err, fin_err = [], [], [], []
     for N in N_evaluate:
         est = g[:, :N]   # guesses 0..N
@@ -173,7 +173,7 @@ def simCI(n, n_seeds, N_evaluate, sig, T, memory_sizes, paramsCI):
                     estimates = beliefs
                 else:
                     estimates = simulate(k, c, alpha, gfunc, beliefs, u)
-                wocMean_err, ind_err, indMedian_err, final_err = errors_from_estimates(estimates)
+                wocMean_err, ind_err, indMedian_err, final_err = errors_from_estimates(estimates, N_evaluate)
                 rows.append(pd.DataFrame({
                     "seed": np.repeat(seeds, len(N_evaluate)), 
                     "k": k, "alpha":alpha,"N": np.tile(N_evaluate, n_seeds),
@@ -184,7 +184,7 @@ def simCI(n, n_seeds, N_evaluate, sig, T, memory_sizes, paramsCI):
                     "gfunc": gfunc, "c": c}))
 
     errorsCI = pd.concat(rows, ignore_index=True)
-    errorsCI.loc[errorsCI["k"] > errorsCI["N"] , [c for c in errorsCI.columns if "relative_error" in c]] = np.nan
+    # errorsCI.loc[errorsCI["k"] > errorsCI["N"] , [col for col in errorsCI.columns if "relative_error" in col]] = np.nan
     return errorsCI
 
 

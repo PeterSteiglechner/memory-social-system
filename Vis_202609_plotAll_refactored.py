@@ -281,7 +281,7 @@ def sim_vs_data(fits, model, ks,  n, n_seeds, N_evaluate, err="relative_error_in
     paramsToSim  = fits.reset_index()[["domain_name"]+params].values.tolist()
     if model=="ci":
         simparams = [(c,a) for d, c,a in paramsToSim]
-        errors  = simCI(n,n_seeds,[N_EVAL],SIG_CI,T,ks,simparams)
+        errors  = simCI(n,n_seeds,[N_evaluate],SIG_CI,T,ks,simparams)
     elif model=="mh":
         simparams = [(logit(E), logit(G)) for d,E,G in paramsToSim]
         errors = simMH(n,n_seeds,[N_evaluate],T,ks,simparams, D=3, verbose = False)

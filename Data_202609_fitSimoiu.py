@@ -106,8 +106,9 @@ def get_chain(task, cond):
 
 # %%
 
-df["dev"] = (df["answer"] - df["correct_answer"]) / df["std_Control"]
-
+# df["dev"] = (df["answer"] - df["correct_answer"]) / df["std_Control"]
+df["diff_rel"] = (df["answer"] - df["correct_answer"])/ df["std_Control"]
+df["dev_rel"] = (df["answer"] - df["correct_answer"]).abs() / df["std_Control"]
 
 indErr = df.groupby(["domain_name", "task_id", "cond"])["dev_rel"].mean().rename("ind_error").reset_index()
 finErr = df.groupby(["domain_name", "task_id", "cond"])["dev_rel"].last().rename("final_error").reset_index()
@@ -149,7 +150,7 @@ err = "crowd_error"
 # errorsCtrl = errors.join(bestCtrl, on=["task_id"])
 best = errors.pivot_table(index="task_id", columns="cond", values=err)[["Consensus", "Most recent"]].idxmin(axis="columns").rename("bestCondition")
 errors = errors.join(best, on=["task_id"])
-errors = errors.join(tasks.set_index("task_id")["domain_name"], on="task_id")
+# errors = errors.join(tasks.set_index("task_id")["domain_name"], on="task_id")
 print(err, best.value_counts())
 
 
